@@ -6,8 +6,8 @@ const {
   updateUser,
   deleteUser,
 } = require("./user.service");
-const { hashSync, genSaltSync } = require("bcrypt");
-
+const { hashSync, genSaltSync,compareSync } = require("bcrypt");
+const { sign } = require("jsonwebtoken");
 module.exports = {
   createUser: (req, res) => {
     const body = req.body;
@@ -27,21 +27,37 @@ module.exports = {
       });
     });
   },
-  /* login: (req, res) => {
+  login: (req, res) => {
     const body = req.body;
     getUserByUserEmail(body.email, (err, results) => {
       if (err) {
         console.log(err);
       }
-      if (!result) {
+      if (!results) {
+        return res.json({
+          success: 0,
+          data: "Invalid email or password",
+        });
+      }
+      const result = compareSync(body.password, results.password);
+      if (result) {
+        results.password = undefined;
+        const jsontoken = sign({ result: results }, process.env.JWT_KEY, {
+          expiresIn: "1h",
+        });
+        return res.json({
+          success: 1,
+          message: "login successfully",
+          token: jsontoken,
+        });
+      } else {
         return res.json({
           success: 0,
           data: "Invalid email or password",
         });
       }
     });
-  }, */
-
+  },
   getUserByUserId: (req, res) => {
     const id = req.params.id;
     getUserByUserId(id, (err, results) => {
@@ -90,7 +106,9 @@ module.exports = {
         });
       }
 
-      // Check if results are empty or null to determine if the record was not found
+      console.log("Results from updateUser:", results);
+
+      // Check if results are null or affectedRows is undefined to determine if the record was not found
       if (!results || results.affectedRows === 0) {
         return res.status(404).json({
           success: 0,
@@ -115,6 +133,7 @@ module.exports = {
           message: "Database entity deletion error",
         });
       }
+      console.log(results);
       // Check if results are empty or null to determine if the user was not found
       if (!results || results.affectedRows === 0) {
         return res.status(404).json({
